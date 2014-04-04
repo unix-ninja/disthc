@@ -1,0 +1,86 @@
+#!/bin/bash
+# disthc compile script
+# one of these days, I may create a proper Makefile...
+
+path_src=.
+path_bin=../bin
+
+if [ "`uname`" == "Darwin" ]; then
+includes="-I /usr/local/include/"
+ldlibs="-L /usr/local/lib/"
+fi
+
+O_BUILD_MASTER=0
+O_BUILD_SLAVE=0
+O_BUILD_CONSOLE=0
+
+buildtype=$@
+if [ "$buildtype" == "" ]; then
+  buildtype="all"
+fi
+
+for param in $buildtype; do
+  if [ "$param" == "all" ]; then
+    O_BUILD_MASTER=1
+    O_BUILD_SLAVE=1
+    O_BUILD_CONSOLE=1
+  elif [ "$param" == "master" ]; then
+    O_BUILD_MASTER=1
+  elif [ "$param" == "slave" ]; then
+    O_BUILD_SLAVE=1
+  elif [ "$param" == "console" ]; then
+    O_BUILD_CONSOLE=1
+  fi
+done
+
+
+if [ "$O_BUILD_MASTER" -ne 1 -a "$O_BUILD_SLAVE" -ne 1 -a "$O_BUILD_CONSOLE" -ne 1 ]; then
+  echo "Error! You must specify the type of build [master|slave|console|all]"
+  echo "       If no build is specified, 'all' is assumed."
+  exit 1
+fi
+
+# --- master --- #
+if [ "$O_BUILD_MASTER" -eq 1 ]; then
+  echo "Compiling Application (master server)..."
+  echo "################################################################################"
+  
+  g++ -o $path_bin/disthcm $path_src/disthcm.cpp $path_src/dtalk.cpp $path_src/djob.cpp $includes $ldlibs -lPocoNet -lPocoUtil -lPocoFoundation -lPocoDataSQLite -lPocoData -lPocoCrypto
+  EC=$?
+  if [ "$EC" -eq 0 ]; then
+    echo "done."
+  else
+    exit $EC
+  fi
+  echo
+fi
+
+# --- slave --- #
+if [ "$O_BUILD_SLAVE" -eq 1 ]; then
+  echo "Compiling Application (slave)..."
+  echo "################################################################################"
+  g++ -g -o $path_bin/disthcs $path_src/disthcs.cpp $path_src/dtalk.cpp $path_src/djob.cpp $path_src/engines/hashcat.cpp $includes $ldlibs -lPocoNet -lPocoUtil -lPocoFoundation
+  EC=$?
+  if [ "$EC" -eq 0 ]; then
+    echo "done."
+  else
+    exit $EC
+  fi
+  echo
+fi
+
+# --- console --- #
+if [ "$O_BUILD_CONSOLE" -eq 1 ]; then
+  echo "Compiling Application (console)..."
+  echo "################################################################################"
+  g++ -g -o $path_bin/disthcc $path_src/disthcc.cpp $path_src/dtalk.cpp $path_src/tinycon.cpp $includes $ldlibs -lPocoNet -lPocoUtil -lPocoFoundation
+  EC=$?
+  if [ "$EC" -eq 0 ]; then
+    echo "done."
+  else
+    exit $EC
+  fi
+  echo
+fi
+
+exit 0
