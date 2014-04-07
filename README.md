@@ -13,7 +13,7 @@ To use this software, compile all 3 components, then:
 
 ## Prequisites
 
-You must have PocoLib >= 1.4.4 in order to build these apps.  I believe Ubuntu ships with 1.3 in it's repos, so Ubuntu users are going to
+You must have PocoLib Complete Edition >= 1.4.4 in order to build these apps. Basic Edition will fail to compile. I believe Ubuntu ships with 1.3 in it's repos, so Ubuntu users are going to
 need to build PocoLib from source before compiling this. (Other distros may need to do the same).
 
 *PLEASE NOTE* Version 1.4.3 is no longer able to build disthc due to the use of the PocoCrypto module.
