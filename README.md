@@ -13,30 +13,26 @@ To use this software, compile all 3 components, then:
 
 ## Prequisites
 
-You must have PocoLib >= 1.4 in order to build these apps.  I believe Ubuntu ships with 1.3 in it's repos, so Ubuntu users are going to
+You must have PocoLib >= 1.4.4 in order to build these apps.  I believe Ubuntu ships with 1.3 in it's repos, so Ubuntu users are going to
 need to build PocoLib from source before compiling this. (Other distros may need to do the same).
+
+*PLEASE NOTE* Version 1.4.3 is no longer able to build disthc due to the use of the PocoCrypto module.
 
 Also, you must have a copy of hashcat and/or hashcat-ocl in order to use this software.  http://www.hashcat.net/
 
-Finally, before you can run the software, you will probably need to modify the server.properties and slave.properties files in order to get certain features to work properly (or at all). One example is, you must include the path to your hashcat install.
+Finally, before you can run the software, you will probably need to modify the server.properties and slave.properties files (found in the cfg directory) in order to get certain features to work properly (or at all). One example is, you must include the path to your hashcat install.
 
 ## Building
 
-It should be pretty simple, just run the compile script to build the executables on your system. You can pass the name of the module you wish to build as an argument. Available modules are: master, slave, console, or all.
-If no module name is given, all is assumed.
-
+You can now use make to build disthc! Run make by itself, or specify one of the three builr targets: master, slave, console.
 Example building all modules:
 
 ```
-$ ./compile
+$ make
 ```
 
-Note, if this does not work, please make sure you have added execute permissions to the compile script:
-
-```
-$ chmod +x compile
-```
+Binaries are stored in bin/ once they are built. 
 
 ## Notes for Windows
 
-I was able to compile this code under Windows, with a little extra massaging. I successfully built with Visual C++ 2010 Express, but I had to adjust the disthc header file to do so. (Without modification, it was unable to locate PocoLib. I am still not sure if this was due to a faulty PocoLib install or not.)
+I was able to compile this code under Windows, with a little extra massaging. I successfully built with Visual C++ 2010 Express, but I had to adjust the disthc header file to do so. (Without modification, it was unable to locate PocoLib. I am still not sure if this was due to a faulty PocoLib install or not.) At the moment, this makefile does not support Windows, so you will need to create a Visual C++ Project manually.

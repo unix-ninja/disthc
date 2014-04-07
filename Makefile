@@ -1,20 +1,25 @@
 CC=g++
 CCFLAGS=-g
-LDIR=/usr/lib
-IDIR=/usr/include
-EXECS=server slave console
+LDIR=/usr/local/lib
+IDIR=/usr/local/include
+EXECS=master slave console
+
+.PHONY: master slave console
 
 all: $(EXECS)
 
+master: bin/disthcm
+slave: bin/disthcs
+console: bin/disthcc
 
-server: djob.cpp dtalk.cpp disthcm.cpp
-	$(CC) -o $@ $(CCFLAGS) $^ -lPocoData -lPocoNet -lPocoUtil -lPocoFoundation -lPocoSQLite
+bin/disthcm: src/djob.cpp src/dtalk.cpp src/disthcm.cpp
+	$(CC) -o $@ $(CCFLAGS) $^ -lPocoNet -lPocoUtil -lPocoFoundation -lPocoDataSQLite -lPocoData -lPocoCrypto
 
-console: dtalk.cpp tinycon.cpp disthcc.cpp
+bin/disthcc: src/dtalk.cpp src/tinycon.cpp src/disthcc.cpp
 	$(CC) -o $@ $(CCFLAGS) $^ -lPocoNet -lPocoUtil -lPocoFoundation
 
-slave: engines/hashcat.cpp djob.cpp dtalk.cpp disthcs.cpp
-	$(CC) -o $@ $(CCFLAGS) $^ -lPocoNet -lPocoUtil -lPocoFoundationd
+bin/disthcs: src/engines/hashcat.cpp src/djob.cpp src/dtalk.cpp src/disthcs.cpp
+	$(CC) -o $@ $(CCFLAGS) $^ -lPocoNet -lPocoUtil -lPocoFoundation
 
 clean:
 	rm -rf *.o $(EXECS)
