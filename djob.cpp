@@ -1,3 +1,5 @@
+#include <Poco/NumberParser.h>
+
 #include "disthc.h"
 #include "djob.h"
 #include "dtalk.h"
@@ -232,18 +234,51 @@ DJob* DJob::_pInstance = NULL; // this MUST be set for Instance() to recognize t
 // ************************************************************************** //
 bool ClientPool::registerClient(StreamSocket socket, int node)
 {
+	ClientNode cn;
+	cn.socket = socket;
+	cn.type = node;
+	
 	if(node == NODE_SLAVE)
 	{
-		_slaves.push_back(socket);
+		_slaves.push_back(cn);
 		_chunkMap.push_back(DEFAULT_CHUNK_SIZE);
 	} else
-		_conio.push_back(socket);
+		//_conio.push_back(socket);
+		_conio.push_back(cn);
+	return true;
+}
+
+bool ClientPool::registerClient(StreamSocket socket, int node, string clientString, string clientToken)
+{
+	// create client node object
+	ClientNode cn;
+	cn.socket = socket;
+	cn.type = node;
+	
+	StringTokenizer cs(clientString," "); //parse client string
+	// add client information to node
+	cn.name = cs[0];
+	cn.os = cs[1];
+	cn.osVersion = cs[2];
+	cn.cpu = NumberParser::parseUnsigned(cs[3]);
+	cn.mac = cs[4];
+	cn.arch = cs[5];
+	cn.token = clientToken;
+	
+	// add to queue
+	if(node == NODE_SLAVE)
+	{
+		_slaves.push_back(cn);
+		_chunkMap.push_back(DEFAULT_CHUNK_SIZE);
+	} else
+		//_conio.push_back(socket);
+		_conio.push_back(cn);
 	return true;
 }
 
 bool ClientPool::unregisterClient(StreamSocket socket, int node)
 {
-	deque<StreamSocket> *q;
+	deque<ClientNode> *q;
 	if(node == NODE_SLAVE)
 		q = &_slaves;
 	else
@@ -251,7 +286,7 @@ bool ClientPool::unregisterClient(StreamSocket socket, int node)
 
 	for(int i=0; i<q->size();i++)
 	{
-		if((*q)[i] == socket) {
+		if((*q)[i].socket == socket) {
 			//(*q).erase((*q).begin()+i, (*q).begin()+i+1);
 			(*q).erase((*q).begin()+i);
 			if(node == NODE_SLAVE)
@@ -287,7 +322,7 @@ bool ClientPool::slavesAvailable()
 void ClientPool::sendMessage(int node, string msg)
 {
 	dTalk *talk;
-	deque<StreamSocket> *q;
+	deque<ClientNode> *q;
 	if(node == NODE_SLAVE)
 		q = &_slaves;
 	else
@@ -295,7 +330,7 @@ void ClientPool::sendMessage(int node, string msg)
 
 	for(int i=0; i<q->size();i++)
 	{
-		talk = new dTalk((*q)[i]);
+		talk = new dTalk((*q)[i].socket);
 		talk->rpc(DCODE_PRINT, msg);
 		delete talk;
 	}
@@ -316,10 +351,8 @@ bool ClientPool::unready(StreamSocket socket)
 {
 	for(int i=0; i<_ready.size(); i++)
 	{
-	//std::cout << "%% +++ " << i << std::endl;
 		if(_ready[i] == socket)
 		{
-			//_ready.erase(_ready.begin()+i,_ready.begin()+i+1);
 			_ready.erase(_ready.begin()+i);
 			return true;
 		}
@@ -327,6 +360,16 @@ bool ClientPool::unready(StreamSocket socket)
 	return false;
 }
 
+ClientNode* ClientPool::get(unsigned int index, int node)
+{
+	deque<ClientNode> *q;
+	if(node == NODE_SLAVE)
+		q = &_slaves;
+	else
+		q = &_conio;
+	
+	return &((*q)[index]);
+}
 StreamSocket* ClientPool::getSlave()
 {
 	if(DEBUG) {
@@ -346,12 +389,12 @@ StreamSocket* ClientPool::getSlave()
 void ClientPool::sendParam(std::string key, std::string value)
 {
 	dTalk *talk;
-	deque<StreamSocket> *q;
+	deque<ClientNode> *q;
 	q = &_slaves;
 
 	for(int i=0; i<q->size();i++)
 	{
-		talk = new dTalk((*q)[i]);
+		talk = new dTalk((*q)[i].socket);
 		talk->rpc(DCODE_SET_PARAM, format("%s:%s", key, value));
 		delete talk;
 	}
@@ -360,13 +403,12 @@ void ClientPool::sendParam(std::string key, std::string value)
 void ClientPool::sendFile(std::string filename, std::string *content)
 {
 	dTalk *talk;
-	deque<StreamSocket> *q;
+	deque<ClientNode> *q;
 	q = &_slaves;
 
 	for(int i=0; i<q->size();i++)
 	{
-		talk = new dTalk((*q)[i]);
-		//talk->rpc(DCODE_SET_PARAM, format("%s:%s", key, value));
+		talk = new dTalk((*q)[i].socket);
 		talk->send_text_as_file(filename, *content);
 		delete talk;
 	}
@@ -380,12 +422,12 @@ void ClientPool::zap(std::string hashes)
 		app.logger().information("%Zap!");
 	}
 	dTalk *talk;
-	deque<StreamSocket> *q;
+	deque<ClientNode> *q;
 	q = &_slaves;
 
 	for(int i=0; i<q->size();i++)
 	{
-		talk = new dTalk((*q)[i]);
+		talk = new dTalk((*q)[i].socket);
 		talk->rpc(DCODE_ZAP, hashes);
 		delete talk;
 	}
@@ -393,11 +435,11 @@ void ClientPool::zap(std::string hashes)
 
 void ClientPool::setChunkSize(StreamSocket socket, unsigned int chunkSize)
 {
-	deque<StreamSocket> *q;
+	deque<ClientNode> *q;
 	q = &_slaves;
 	for(int i=0; i<q->size();i++)
 	{
-		if((*q)[i] == socket) {
+		if((*q)[i].socket == socket) {
 			_chunkMap[i] = chunkSize;
 			break;
 		}
@@ -406,11 +448,11 @@ void ClientPool::setChunkSize(StreamSocket socket, unsigned int chunkSize)
 
 unsigned int ClientPool::getChunkSize(StreamSocket socket)
 {
-	deque<StreamSocket> *q;
+	deque<ClientNode> *q;
 	q = &_slaves;
 	for(int i=0; i<q->size();i++)
 	{
-		if((*q)[i] == socket) {
+		if((*q)[i].socket == socket) {
 			return _chunkMap[i];
 			break;
 		}

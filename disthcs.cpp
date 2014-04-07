@@ -15,6 +15,7 @@
 // ************************************************************************** //
 // Local globals
 // ************************************************************************** //
+std::string clientString;
 std::string authToken;
 std::string dataPath;
 bool DEBUG;
@@ -61,13 +62,15 @@ public:
 			NObserver<DistClientHandler,
 			ShutdownNotification>(*this, &DistClientHandler::onShutdown)
 		);
-		//greet server
+		// greet server
 		_talk.rpc(DCODE_HELO, format("-dhc:slave:%d", APP_VERSION));
-		//authorize to server
+		// authorize to server
 		_talk.rpc(DCODE_TOKEN, authToken);
-		//report chunk capability
+		// identify to server
+		_talk.rpc(DCODE_SET_PARAM, clientString);
+		// report chunk capability
 		_talk.rpc(DCODE_SET_PARAM, format(string(PARAM_CHUNK_SIZE)+":%u", job->getChunkSize()));
-		//sync with server
+		// sync with server
 		if(dengine->remoteSync())
 		{
 			_talk.rpc(DCODE_SYNC);
@@ -488,10 +491,7 @@ protected:
 		// set-up a SocketReactor
 		SocketReactor reactor;
 
-		// ... and a SocketAcceptor
-		//SocketAcceptor<DistClientHandler> acceptor(svs, reactor);
 		// Connect to the server
-		//SocketConnector<DistClientHandler> connector(sa, reactor);
 		mySocketConnector connector(sa, reactor);
 
 		if(DEBUG) app.logger().information("DEBUG mode enabled");
@@ -537,6 +537,16 @@ int main(int argc, char** argv)
 {
 	int ec;
 	string cwd = Poco::Path::current();
+	
+	// create client string
+	clientString = format("%s %s %s %u %s %s",
+		Poco::Environment::nodeName(),
+		Poco::Environment::osName(),
+		Poco::Environment::osVersion(),
+		Poco::Environment::processorCount(),
+		Poco::Environment::nodeId(),
+		Poco::Environment::osArchitecture()
+		);
 		
 	// run slave
 	ec =run_app(argc, argv);

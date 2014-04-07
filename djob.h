@@ -74,6 +74,12 @@ public:
 	StreamSocket	socket;
 	int				type;	// client node type (NODE_SLAVE|NODE_CONIO)
 	string			os;
+	string			osVersion;
+	string			arch;
+	unsigned int	cpu;
+	string			mac;
+	string			name;
+	string			token;
 	//unsigned int	chunk; // TODO replace chunkMap with this param
 };
 
@@ -84,17 +90,19 @@ public:
 class ClientPool
 {
 private:
-	deque<StreamSocket>	_conio;  // registered console clients
-	deque<StreamSocket>	_slaves; // registered slave clients
+	//deque<StreamSocket>	_conio;  // registered console clients
+	deque<ClientNode>	_conio;  // registered console clients
+	deque<ClientNode>	_slaves; // registered slave clients
 	deque<StreamSocket>	_ready; // slaves available for processing
 	deque<unsigned int> _chunkMap;
 	
 public:
 	bool			registerClient(StreamSocket, int node_type);
+	bool			registerClient(StreamSocket, int node_type, string clientString, string clientToken);
 	bool			unregisterClient(StreamSocket, int node_type);
 	int				count();
 	int				count(int type);
-	StreamSocket*	get(int index);
+	ClientNode*		get(unsigned int index, int node_type);
 	bool			slavesAvailable();
 	void			sendMessage(int, std::string);
 	void			sendParam(string, string);

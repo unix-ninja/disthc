@@ -15,12 +15,15 @@
 #include <Poco/Data/RecordSet.h>
 #include <Poco/Data/SQLite/Connector.h>
 #include <Poco/Data/SQLite/SQLiteException.h>
+#include <Poco/Crypto/OpenSSLInitializer.h>
+#include <Poco/Crypto/DigestEngine.h>
 #include <Poco/Tuple.h>
 
 using Poco::Data::into;
 using Poco::Data::now;
 using Poco::Data::range;
 using Poco::Data::use;
+using Poco::Crypto::DigestEngine;
 
 // ************************************************************************** //
 // Local globals
@@ -39,6 +42,7 @@ Poco::Data::Session* db;
 
 bool sendHashes()
 {
+	// sends to all slaves
 	Application& app = Application::instance();
 	DJob *job = DJob::Instance();
 	string hash;
@@ -66,6 +70,7 @@ bool sendHashes()
 
 bool sendHashes(StreamSocket socket)
 {
+	// sends to a particular socket
 	Application& app = Application::instance();
 	DJob *job = DJob::Instance();
 	string hash;
@@ -114,7 +119,7 @@ bool loadHashes()
 	*db << "DELETE FROM job_queue", now;
 	
 	app.logger().information("Loading hashes into db...");
-	//loop through hash file
+	//loop through hash file and add relevant hashes to job queue
 	while(fis >> line) {
 		// TODO parse for different hash types and salts
 		StringTokenizer t(line,":");
@@ -291,10 +296,18 @@ public:
 			{
 				if(authorize())
 				{
+					// retreive client identity
+					_talk.receive();
+					string clientString = _talk.data();
+					app.logger().information(format("Client: %s", clientString));
+					DigestEngine de("SHA256");
+					de.update(clientString);
+					string clientToken = DigestEngine::digestToHex(de.digest());
+					
 					// register the client
 					if(_clientType == "slave")
 					{
-						pool.registerClient(_socket, NODE_SLAVE);
+						pool.registerClient(_socket, NODE_SLAVE, clientString, clientToken);
 						_talk.receive();
 						if(_talk.data().substr(0,2) == "C:")
 						{
@@ -322,7 +335,7 @@ public:
 					}
 					else
 					{
-						pool.registerClient(_socket, NODE_CONIO);
+						pool.registerClient(_socket, NODE_CONIO, clientString, clientToken);
 					}
 					
 					_talk.rpc(DCODE_READY);
@@ -375,10 +388,9 @@ public:
 			_talk.rpc(DCODE_PRINT, "Invalid cient version!\n");
 			return false;
 		}
-
-		_talk.receive();
-
+		
 		// Make sure is authorized, or die
+		_talk.receive();
 		if(_talk.data() != authToken)
 		{
 			app.logger().information("|Invalid auth token");
@@ -489,6 +501,48 @@ public:
 				_talk.rpc(DCODE_PRINT, format("Chunk: %lu\n", job->showChunk()));
 			}
 		}
+		else if(rpc == "clients")
+		{
+			if(param.count()>1)
+			{
+				int node_t = 0;
+				int pi = 1; // set the param index to check
+				
+				if(param[1] == "details" )
+				{
+					pi = 2; // advance param index
+				}
+				if(param.count()>(pi))
+				{
+					if(param[pi] == "conio" )
+					{
+						node_t = NODE_CONIO;
+					}
+					else if (param[pi] == "slave")
+					{
+						node_t = NODE_SLAVE;
+					}
+					else
+					{
+						_talk.rpc(DCODE_PRINT, "Unknown option: " + param[pi]);
+						return;
+					}
+				}
+				if(node_t > 0)
+				{
+					_talk.rpc(DCODE_PRINT, format("Clients: %d",pool.count(node_t)));
+				}
+				else
+				{
+					_talk.rpc(DCODE_PRINT, format("Clients: %d",pool.count()));
+				}
+				if(param[1] == "details" )
+				{
+					_talk.rpc(DCODE_PRINT, "Client details:\n");
+					clientDetails(node_t);
+				}
+			} else _talk.rpc(DCODE_PRINT, format("Clients: %d",pool.count()));
+		}
 		else if(rpc == "debug")
 		{
 			debugCmd();
@@ -545,21 +599,21 @@ public:
 			} else {
 				if(DEBUG) app.logger().debug("%Sending help data...");
 				_talk.rpc(DCODE_PRINT, string("Supported commands (type help [command] to get more info):\n") +
-					  "  attack\n" +
-					  "  chunk\n" +
-					  "  dictionary\n" +
-					  "  exit\n" +
-					  "  hashes\n" +
-					  "  help\n" +
-					  "  mask\n" +
-					  "  msg\n" +
-					  "  mode\n" +
-					  "  show\n" +
-					  "  shutdown\n" +
-					  "  slaves\n" +
-					  "  start\n" +
-					  "  status\n" +
-					  "  stop\n");
+					"  attack\n" +
+					"  chunk\n" +
+					"  clients\n" +
+					"  dictionary\n" +
+					"  exit\n" +
+					"  hashes\n" +
+					"  help\n" +
+					"  mask\n" +
+					"  msg\n" +
+					"  mode\n" +
+					"  show\n" +
+					"  shutdown\n" +
+					"  start\n" +
+					"  status\n" +
+					"  stop\n");
 			}
 		}
 		else if(rpc == "mask")
@@ -641,10 +695,6 @@ public:
 			// hard shutdown; this should probably be improved
 			exit(0);
 		}
-		else if(rpc == "slaves")
-		{
-			_talk.rpc(DCODE_PRINT, format("Slaves: %d",pool.count(NODE_SLAVE)));
-		}
 		else if(rpc == "start")
 		{
 			if(job->isRunning())
@@ -702,6 +752,13 @@ public:
 			msg = (string) "(chunk)  view or reset the current chunk position\n" +
 				(string) "    chunk         view the current chunk offset\n" +
 				(string) "    chunk reset   set chunk position to 0";
+		} else if(cmd == "clients") {
+			msg = (string) "(clients)  view information about disthc clients\n" +
+				(string) "           You can specify an optional \"node\" parameter to get more\n" +
+				(string) "           info about a node type. For example, 'clients conio' will\n" +
+				(string) "           show info for only the connected consoles\n" +
+				(string) "    clients          view the number of connected clients\n" +
+				(string) "    clients details  view client details for all connected clients\n";
 		} else if(cmd == "dictionary" || cmd == "dict") {
 			msg = (string) "(dictionary)  view or set the current dictionary file\n" +
 				(string) "    dictionary             view the current dictionary filename\n" +
@@ -737,8 +794,6 @@ public:
 				//(string) "    show pot      view the results in your pot";
 		}else if(cmd == "shutdown" || cmd == "shut") {
 			msg = "(shutdown)  this will shutdown the server and close all client connections made\n to the server.";
-		} else if(cmd == "slaves") {
-			msg = "(slaves) view the current number of connected slaves.";
 		} else if(cmd == "start") {
 			msg = "(start)  use this to start the processing of a job.";
 		} else if(cmd == "status") {
@@ -756,6 +811,30 @@ public:
 		string ts = " An application uses instances of the Logger class to generate its log messages and send them on their way to their final destination. Logger instances are organized in a hierarchical, tree-like manner and are maintained by the framework. Every Logger object has exactly one direct ancestor, with the exception of the root logger. A newly created logger inherits its properties - channel and level - from its direct ancestor. Every logger is connected to a channel, to which it passes on its messages. Furthermore, every logger has a log level, which is used for filtering messages based on their priority. Only messages with a priority equal to or higher than the specified level are passed on. For example, if the level of a logger is set to three (PRIO_ERROR), only messages with priority PRIO_ERROR, PRIO_CRITICAL and PRIO_FATAL will propagate. If the level is set to zero, the logger is effectively disabled.\n The name of a logger determines the logger's place within the logger hierarchy. The name of the root logger is always "", the empty string. For all other loggers, the name is made up of one or more components, separated by a period. For example, the loggers with the name HTTPServer.RequestHandler and HTTPServer.Listener are descendants of the logger HTTPServer, which itself is a descendant of the root logger. There is not limit as to how deep the logger hierarchy can become. Once a logger has been created and it has inherited the channel and level from its ancestor, it loses the connection to it. So changes to the level or channel of a logger do not affect its descendants. This greatly simplifies the implementation of the framework and is no real restriction, because almost always levels and channels are set up at application startup and never changed afterwards. Nevertheless, there are methods to simultaneously change the level and channel of all loggers in a certain hierarchy.\n There are also convenience macros available that wrap the actual logging statement into a check whether the Logger's log level is sufficient to actually log the message. This allows to increase the application performance if many complex log statements are used. The macros also add the source file path and line number into the log message so that it is available to formatters. Variants of these macros that allow message formatting with Poco::format() are also available. Up to four arguments are supported.";
 		
 		_talk.rpc(DCODE_PRINT, ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + "\n");
+	}
+	
+	void clientDetails(int node_t)
+	{
+		ClientNode* cn;
+		string out;
+		
+		if (node_t == 0 || node_t == NODE_CONIO)
+		{
+			for(int i=0; i<pool.count(NODE_CONIO); i++)
+			{
+				cn = pool.get(i, NODE_CONIO);
+				out.append(format("C  %s %s %s %s  %s\n", cn->name, cn->os, cn->osVersion, cn->arch, cn->socket.peerAddress().toString()));
+			}
+		}
+		if (node_t == 0 || node_t == NODE_SLAVE)
+		{
+			for(int i=0; i<pool.count(NODE_SLAVE); i++)
+			{
+				cn = pool.get(i, NODE_SLAVE);
+				out.append(format("S  %s %s %s %s  %s\n", cn->name, cn->os, cn->osVersion, cn->arch, cn->socket.peerAddress().toString()));
+			}
+		}
+		_talk.rpc(DCODE_PRINT, out);
 	}
 
 };
@@ -989,6 +1068,7 @@ protected:
 
 int main(int argc, char** argv)
 {
+	Poco::Crypto::OpenSSLInitializer::initialize(); // needed to use DigestEngines
 	DistServer app;
 	return app.run(argc, argv);
 }

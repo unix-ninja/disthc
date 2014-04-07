@@ -8,6 +8,7 @@ struct hash_list
 string cmap[] = {		// map of commands to expand
 			"attack",
 			"chunk",
+			"clients",
 			"dictionary",
 			"exit",
 			"hashes",

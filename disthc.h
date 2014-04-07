@@ -1,3 +1,4 @@
+#include <Poco/Environment.h>
 #include <Poco/Exception.h>
 #include <Poco/File.h>
 #include <Poco/FileStream.h>
@@ -70,11 +71,11 @@ using std::vector;
 
 
 // Application constants
-#define APP_VERSION 35
+#define APP_VERSION 36
 #define APP_PROMPT string("disthc>")
 #define NODE_SLAVE 1
 #define NODE_CONIO 2
-#define DEFAULT_CHUNK_SIZE 100000
+#define DEFAULT_CHUNK_SIZE 1000000
 #define SYNC_AUTO 1
 #define NO_SYNC_AUTO 0
 

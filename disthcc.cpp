@@ -12,7 +12,10 @@
 using std::string;
 using std::vector;
 
-// local globals
+// ************************************************************************** //
+// Local globals
+// ************************************************************************** //
+std::string clientString;
 std::string authToken;
 bool DEBUG;
 bool READY(false);
@@ -20,7 +23,9 @@ Thread thread_con;
 dTalk *pTalk;
 bool wait_for_receive(false);
 
+// ************************************************************************** //
 // Console Class
+// ************************************************************************** //
 class tcon : public Poco::Runnable, public tinyConsole
 {
 public:
@@ -67,7 +72,9 @@ public:
 	}
 } console(APP_PROMPT);
 
+// ************************************************************************** //
 // Service handle for main app
+// ************************************************************************** //
 class DistClientHandler
 {
 private:
@@ -106,6 +113,8 @@ public:
 		_talk.rpc(DCODE_HELO, format("-dhc:conio:%d", APP_VERSION));
 		//authorize to server
 		_talk.rpc(DCODE_TOKEN, authToken);
+		// identify to server
+		_talk.rpc(DCODE_SET_PARAM, clientString);
 	}
 
 	~DistClientHandler()
@@ -225,7 +234,9 @@ public:
 
 };
 
-// The main application class.
+// ************************************************************************** //
+// The main application class
+// ************************************************************************** //
 class DistClient : public Poco::Util::ServerApplication
 {
 public:
@@ -302,6 +313,18 @@ protected:
 			displayHelp();
 			return Application::EXIT_OK;
 		}
+		
+		Application& app = Application::instance();
+		
+		// create client string
+		clientString = format("%s %s %s %u %s %s",
+			Poco::Environment::nodeName(),
+			Poco::Environment::osName(),
+			Poco::Environment::osVersion(),
+			Poco::Environment::processorCount(),
+			Poco::Environment::nodeId(),
+			Poco::Environment::osArchitecture()
+			);
 
 		// get parameters from configuration file
 		string host = (string) config().getString("cfg.server.address","localhost");
@@ -309,17 +332,12 @@ protected:
 		authToken = (string) config().getString("cfg.server.auth.token", "*");
 		DEBUG = config().getBool("cfg.server.debug", false);
 
-		Application& app = Application::instance();
-
 		// set-up a stream socket
 		SocketAddress sa(host, port);
 		// set-up a SocketReactor
 		SocketReactor reactor;
 
-		// ... and a SocketAcceptor
-		//SocketAcceptor<DistClientHandler> acceptor(svs, reactor);
 		// Connect to the server
-		//SocketConnector<DistClientHandler> connector(sa, reactor);
 		mySocketConnector connector(sa, reactor);
 
 		// run the reactor in its own thread so that we can wait for a termination request
