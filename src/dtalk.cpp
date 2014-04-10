@@ -28,7 +28,7 @@ bool dTalk::rpc(int DCODE, std::string data) {
 
 	// dump data into stream
 	ss << data;
-
+	
 	// iterate through the stream and send the data
 	while (ss.getline(sbuffer, block_sz)) {
 		buffer = sbuffer;

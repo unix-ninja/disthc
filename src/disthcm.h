@@ -9,6 +9,9 @@ string cmap[] = {		// map of commands to expand
 			"attack",
 			"chunk",
 			"clients",
+			"clients details",
+			"clients details conio",
+			"clients details slave",
 			"dictionary",
 			"exit",
 			"hashes",
@@ -16,7 +19,6 @@ string cmap[] = {		// map of commands to expand
 			"msg",
 			"mode",
 			"shutdown",
-			"slaves",
 			"start",
 			"status",
 			"stop" };

@@ -24,14 +24,23 @@ Finally, before you can run the software, you will probably need to modify the s
 
 ## Building
 
-You can now use make to build disthc! Run make by itself, or specify one of the three builr targets: master, slave, console.
+You can now use make to build disthc! Run make by itself, or specify one of the three build targets: master, slave, console.
 Example building all modules:
 
 ```
 $ make
 ```
 
-Binaries are stored in bin/ once they are built. 
+Binaries are stored in bin/ once they are built.
+
+## Running your binaries
+
+By default, each binary will look in the current working directory for its configuration file. You can specify an alternate location for a config, however, using the -c flag.
+Example running the master server with the default config file:
+
+```
+$ bin/disthcm -c cfg/master.properties
+```
 
 ## Notes for Windows
 

@@ -160,12 +160,13 @@ public:
 		}
 		else if(_talk.dcode() == DCODE_HOTKEY)
 		{
+			//std::cout << "[" << _talk.data().size() << "] " << std::flush;
 			if (_talk.data().substr(0,1) == "\t")
 			{
 				console.setBuffer(console.getBuffer() + _talk.data().substr(1));
 				std::cout << _talk.data().substr(1) << std::flush;
 			}
-			else
+			else if (_talk.data().size())
 			{
 				if(_talk.data() == format("%c", 4))
 				{
@@ -241,7 +242,8 @@ class DistClient : public Poco::Util::ServerApplication
 {
 public:
 
-	DistClient() : _helpRequested(false)
+	DistClient() : _helpRequested(false),
+		_cfg("console.properties")
 	{
 	}
 
@@ -256,16 +258,16 @@ public:
 private:
 
 	bool _helpRequested;
+	string _cfg;
 
 protected:
 
 	void initialize(Application& self)
 	{
-		string cfg = "console.properties";
-		File f(cfg);
+		File f(_cfg);
 		if(f.exists())
 		{
-			loadConfiguration(cfg); // load default configuration files, if present
+			loadConfiguration(_cfg); // load default configuration files, if present
 		}
 		ServerApplication::initialize(self);
 		self.logger().information("----------------------------------------");
@@ -294,6 +296,10 @@ protected:
 		if (name == "help")
 		{
 			_helpRequested = true;
+		}
+		else if (name == "config")
+		{
+			_cfg = value;
 		}
 	}
 

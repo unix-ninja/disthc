@@ -329,7 +329,8 @@ class DistClient : public Poco::Util::ServerApplication
 public:
 
 	DistClient() : _helpRequested(false),
-		_syncRequested(-1)
+		_syncRequested(-1),
+		_cfg ("slave.properties")
 	{
 	}
 
@@ -345,16 +346,16 @@ private:
 
 	bool _helpRequested;
 	int _syncRequested;
+	string _cfg;
 
 protected:
 
 	void initialize(Application& self)
 	{
-		string cfg = "slave.properties";
-		File f(cfg);
+		File f(_cfg);
 		if(f.exists())
 		{
-			loadConfiguration(cfg); // load default configuration files, if present
+			loadConfiguration(_cfg); // load default configuration files, if present
 		}
 		ServerApplication::initialize(self);
 		self.logger().information("----------------------------------------");
@@ -380,6 +381,12 @@ protected:
 			.repeatable(false)
 			.argument("true|false", true)
 		);
+		
+		options.addOption(
+			Option("config", "c", "specify where the .properties config file is located")
+			.required(false)
+			.repeatable(false)
+			.argument("CONFIG"));
 	}
 
 	void handleOption(const std::string& name, const std::string& value)
@@ -400,6 +407,10 @@ protected:
 			{
 				_syncRequested = NO_SYNC_AUTO;
 			}
+		}
+		else if (name == "config")
+		{
+			_cfg = value;
 		}
 	}
 

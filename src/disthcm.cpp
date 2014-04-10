@@ -404,42 +404,93 @@ public:
 	}
 	
 	string expand_rpc(string rpc)
-	{		
+	{
+		StringTokenizer rpct(rpc, " ");
 		vector<string> cmd_map;
 		
 		for (int i=0; i<sizeof(cmap) / sizeof(string); i++)
 		{
 			if(cmap[i].find(rpc,0) == 0)
 			{
-				cmd_map.push_back(cmap[i]);
+				StringTokenizer mapt(cmap[i], " ");
+				if(mapt[mapt.count()-1].find(rpct[rpct.count()-1],0) == 0)
+				{
+					cmd_map.push_back(mapt[mapt.count()-1]);
+				}
 			}
-			
 		}
 		
 		if(cmd_map.size() > 1) return " ";
 		if(cmd_map.size() == 1) return cmd_map[0];
-		return rpc;
+		return rpct[rpct.count()-1];
 	}
-	
+	  
 	string tab_complete(string needle)
 	{
+		bool listmode = false;
 		vector<string> cmd_map;
 		string map;
+		string prefix;
 		
+		// detect tab complete when no chars have been entered for param
+		if(needle == "" || needle.substr(needle.length()-1) == " ")
+		{
+			listmode = true;
+		}
+		
+		{ // scope needle tokens and expand before offering tab complete
+			StringTokenizer rpct(needle, " ");
+			if(rpct.count() > 1)
+			{
+				for(int i=0; i<rpct.count()-1; i++)
+				{
+					if(prefix.length()) prefix += " ";
+					prefix += expand_rpc(prefix + rpct[i]);
+				}
+			}
+
+			// update needle with expanded prefixes
+			if(prefix.length()) prefix += " ";
+			needle = prefix + rpct[rpct.count()-1];
+		}
+		
+		// let's use a new Token for updated needle
+		StringTokenizer rpct(needle, " ");
+		
+		// now we can perform the mappings
 		for (int i=0; i<sizeof(cmap) / sizeof(string); i++)
 		{
 			if(cmap[i].find(needle,0) == 0)
 			{
-				cmd_map.push_back(cmap[i]);
+				StringTokenizer mapt(cmap[i], " ");
+				if(listmode)
+				{
+					// only grab matches for the next sublevel
+					if(mapt.count() == rpct.count()+1)
+					{
+						cmd_map.push_back(mapt[mapt.count()-1]);
+					}
+				}
+				else
+				{
+					if(mapt[mapt.count()-1].find(rpct[rpct.count()-1],0) == 0)
+					{
+						cmd_map.push_back(mapt[mapt.count()-1]);
+					}
+				}
 			}
 		}
 		
-		// return only the suffix if found
-		if(cmd_map.size() == 1) return "\t" + cmd_map[0].substr(needle.length()) + " ";
-		
-		if(cmd_map.size() > 1)
+		// return completion only the suffix if found
+		if(cmd_map.size() == 1 && !listmode)
 		{
-			map = "\n";
+			return "\t" + cmd_map[0].substr(rpct[rpct.count()-1].length()) + " ";
+		}
+		
+		// return a list if ambiguous
+		if(cmd_map.size() > 1 || (listmode && cmd_map.size() > 0))
+		{
+			map = " \n";
 			for (int i=0; i<cmd_map.size(); i++)
 			{
 				map += cmd_map[i] + "\n";
@@ -448,28 +499,63 @@ public:
 			return map;
 		}
 		
-		// return nothing
+		// return nothing if no mappings
 		return "";
 	}
 
 	void process_rpc()
 	{
 		Application& app = Application::instance();
-		StringTokenizer param(_talk.data()," ", StringTokenizer::TOK_IGNORE_EMPTY | StringTokenizer::TOK_TRIM); 
-		string rpc = expand_rpc(param[0]);
-		
-		if(rpc == " ")
+		StringTokenizer t(_talk.data()," ", StringTokenizer::TOK_IGNORE_EMPTY | StringTokenizer::TOK_TRIM);
+		vector<string> param;
+		string rpc;
+		string cmd_tree = "";
+
+		// expand all params before processing
+		for(int i=0; i< t.count(); i++)
 		{
-			if(DEBUG) app.logger().information(format("|Ambiguous command: %s", _talk.data()));
-			_talk.rpc(DCODE_PRINT, "Ambiguous command.\n");
-			return;
+			string cmd_branch;
+			if(cmd_tree.length())
+			{
+				cmd_branch = expand_rpc(cmd_tree + " " + t[i]);
+			}
+			else
+			{
+				cmd_branch = expand_rpc(t[i]);
+			}
+			
+			// expanded params will be whitespace if ambiguous
+			if(cmd_branch == " ")
+			{
+				if(DEBUG) app.logger().information(format("|Ambiguous command: %s", t[i]));
+				_talk.rpc(DCODE_PRINT, "Ambiguous command.\n");
+				return;
+			}
+			
+			// pad tree string
+			if(cmd_tree.length()) cmd_tree += " ";
+			
+			// only apply branch if a match is found
+			if(cmd_branch.length())
+			{
+				param.push_back(cmd_branch);
+				cmd_tree += cmd_branch;
+			} else {
+				param.push_back(t[i]);
+				cmd_tree += t[i];
+			}
+			
 		}
+		
+		// alias for rpc path
+		rpc = param[0];
+		
 		// Set pointer for DJob
 		DJob *job = DJob::Instance();
 		
 		if(rpc == "attack")
 		{
-			if(param.count()>1)
+			if(param.size()>1)
 			{
 				job->setAttackMode(NumberParser::parse(param[1].c_str()));
 				_talk.rpc(DCODE_READY); // send to console
@@ -485,7 +571,7 @@ public:
 		}
 		else if(rpc == "chunk")
 		{
-			if(param.count()>1)
+			if(param.size()>1)
 			{
 				//job->setChunk(NumberParser::parseUnsigned(param[1]));
 				if(param[1] == "reset")
@@ -503,7 +589,7 @@ public:
 		}
 		else if(rpc == "clients")
 		{
-			if(param.count()>1)
+			if(param.size()>1)
 			{
 				int node_t = 0;
 				int pi = 1; // set the param index to check
@@ -512,7 +598,7 @@ public:
 				{
 					pi = 2; // advance param index
 				}
-				if(param.count()>(pi))
+				if(param.size()>(pi))
 				{
 					if(param[pi] == "conio" )
 					{
@@ -549,7 +635,7 @@ public:
 		}
 		else if(rpc == "dictionary")
 		{
-			if(param.count()>1)
+			if(param.size()>1)
 			{
 				job->setDictionary(param[1]);
 				_talk.rpc(DCODE_READY);
@@ -564,7 +650,7 @@ public:
 		}
 		else if(rpc == "hashes")
 		{
-			if(param.count()>1)
+			if(param.size()>1)
 			{
 				if(job->getHashFile() != param[1])
 				{
@@ -593,7 +679,7 @@ public:
 		}
 		else if(rpc == "help")
 		{
-			if(param.count()>1)
+			if(param.size()>1)
 			{
 				moreHelp(param[1]);
 			} else {
@@ -618,7 +704,7 @@ public:
 		}
 		else if(rpc == "mask")
 		{
-			if(param.count()>1)
+			if(param.size()>1)
 			{
 				if(job->setMask(param[1]))
 				{
@@ -639,7 +725,7 @@ public:
 		}
 		else if(rpc == "mode")
 		{
-			if(param.count()>1)
+			if(param.size()>1)
 			{
 				job->setHashType(atoi(param[1].c_str()));
 				_talk.rpc(DCODE_READY);
@@ -654,7 +740,7 @@ public:
 		}
 		else if(rpc == "msg")
 		{
-			if(param.count()>1)
+			if(param.size()>1)
 			{
 				// make sure to grab the leading whitespace
 				int mbuf = _talk.data().find(param[0]);
@@ -667,7 +753,7 @@ public:
 		}
 		else if(rpc == "rules")
 		{
-			if(param.count()>1)
+			if(param.size()>1)
 			{
 				job->setRules(param[1]);
 				_talk.rpc(DCODE_READY);
@@ -682,7 +768,7 @@ public:
 		}
 		else if(rpc == "show")
 		{
-			if(param.count()>1)
+			if(param.size()>1)
 			{
 				_talk.rpc(DCODE_PRINT, "Plain text: \n");
 				app.logger().information("Showing rainbow results...");
@@ -753,10 +839,10 @@ public:
 				(string) "    chunk         view the current chunk offset\n" +
 				(string) "    chunk reset   set chunk position to 0";
 		} else if(cmd == "clients") {
-			msg = (string) "(clients)  view information about disthc clients\n" +
-				(string) "           You can specify an optional \"node\" parameter to get more\n" +
-				(string) "           info about a node type. For example, 'clients conio' will\n" +
-				(string) "           show info for only the connected consoles\n" +
+			msg = (string) "(clients)  view information about disthc clients\n\n" +
+				(string) "           You can specify an optional \"node\" parameter to get more info about a\n" +
+				(string) "           node type. For example, 'clients conio' will show info for only the\n" +
+				(string) "           connected consoles\n\n" +
 				(string) "    clients          view the number of connected clients\n" +
 				(string) "    clients details  view client details for all connected clients\n";
 		} else if(cmd == "dictionary" || cmd == "dict") {
@@ -889,7 +975,10 @@ class DistServer : public Poco::Util::ServerApplication
 {
 public:
 
-	DistServer() : _helpRequested(false) { }
+	DistServer() : _helpRequested(false),
+		_cfg("master.properties")
+	{
+	}
 
 	~DistServer() { }
 
@@ -900,16 +989,16 @@ public:
 private:
 
 	bool _helpRequested;
+	string _cfg;
 
 protected:
 
 	void initialize(Application& self)
 	{
-		string cfg = "master.properties";
-		File f(cfg);
+		File f(_cfg);
 		if(f.exists())
 		{
-			loadConfiguration(cfg); // load default configuration files, if present
+			loadConfiguration(_cfg); // load default configuration files, if present
 		}
 		ServerApplication::initialize(self);
 		self.logger().information("----------------------------------------");
@@ -929,15 +1018,25 @@ protected:
 			Option("help", "h", "display help information on command line arguments")
 			.required(false)
 			.repeatable(false));
+		
+		options.addOption(
+			Option("config", "c", "specify where the .properties config file is located")
+			.required(false)
+			.repeatable(false)
+			.argument("CONFIG"));
 	}
 
 	void handleOption(const std::string& name, const std::string& value)
 	{
 		ServerApplication::handleOption(name, value);
-
+		
 		if (name == "help")
 		{
 			_helpRequested = true;
+		}
+		else if (name == "config")
+		{
+			_cfg = value;
 		}
 	}
 
