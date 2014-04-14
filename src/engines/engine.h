@@ -3,13 +3,13 @@
 class Engine
 {
 public:
-	Engine() {}
+	Engine() { _ghost = false; }
 	
 	~Engine() {}
 	
 	virtual int			run() { return 0; }
 	virtual string		results() { return string(""); }
-	virtual bool		isGhost() { return false; }
+	virtual bool		isGhost() { return _ghost; }
 	virtual void		zapHashes(string) { return; }
 	//virtual void		setConfig(string, string);
 	
@@ -35,6 +35,7 @@ public:
 	void			setFlags(string);
 	string			getConfig(string);
 	void			setConfig(string, string);
+	void			setGhost(bool flag) { _ghost = flag; };
 	
 	bool			isRunnable();
 	bool			remoteSync();
@@ -59,6 +60,7 @@ protected:
 	string			_flags; // additional parameters for hashcat
 	string			_results;
 	bool			_sync;
+	bool			_ghost;
 };
 
 extern Engine *dengine;

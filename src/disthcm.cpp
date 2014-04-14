@@ -631,7 +631,7 @@ public:
 		}
 		else if(rpc == "debug")
 		{
-			debugCmd();
+			debugCmd(&param);
 		}
 		else if(rpc == "dictionary")
 		{
@@ -706,19 +706,33 @@ public:
 		{
 			if(param.size()>1)
 			{
-				if(job->setMask(param[1]))
+				if(param[1] == "minimum")
 				{
-					_talk.rpc(DCODE_READY);
-					pool.sendParam(PARAM_MASK, job->getMask()); // send to slaves
-					if(DEBUG)
+					if(param.size() > 2)
 					{
-						app.logger().information(format("%%Setting mask to %s", param[1]));
+						job->setMaskMin(NumberParser::parse(param[2]));
+						_talk.rpc(DCODE_READY);
 					}
-				} else {
-					_talk.rpc(DCODE_PRINT, "Unable to set mask!");
-					app.logger().information(format("|Unable to set mask: %s", param[1]));
+					else
+					{
+						_talk.rpc(DCODE_PRINT, format("Mask minimum: %d\n", job->getMaskMin()));
+					}
 				}
-				
+				else
+				{
+					if(job->setMask(param[1]))
+					{
+						_talk.rpc(DCODE_READY);
+						pool.sendParam(PARAM_MASK, job->getMask()); // send to slaves
+						if(DEBUG)
+						{
+							app.logger().information(format("%%Setting mask to %s", param[1]));
+						}
+					} else {
+						_talk.rpc(DCODE_PRINT, "Unable to set mask!");
+						app.logger().information(format("|Unable to set mask: %s", param[1]));
+					}
+				}
 			} else {
 				_talk.rpc(DCODE_PRINT, format("Mask: %s\n", job->getMask()));
 			}
@@ -892,11 +906,40 @@ public:
 		_talk.rpc(DCODE_PRINT, msg + "\n");
 	}
 	
-	void debugCmd()
+	void debugCmd(vector<string> *param)
 	{
-		string ts = " An application uses instances of the Logger class to generate its log messages and send them on their way to their final destination. Logger instances are organized in a hierarchical, tree-like manner and are maintained by the framework. Every Logger object has exactly one direct ancestor, with the exception of the root logger. A newly created logger inherits its properties - channel and level - from its direct ancestor. Every logger is connected to a channel, to which it passes on its messages. Furthermore, every logger has a log level, which is used for filtering messages based on their priority. Only messages with a priority equal to or higher than the specified level are passed on. For example, if the level of a logger is set to three (PRIO_ERROR), only messages with priority PRIO_ERROR, PRIO_CRITICAL and PRIO_FATAL will propagate. If the level is set to zero, the logger is effectively disabled.\n The name of a logger determines the logger's place within the logger hierarchy. The name of the root logger is always "", the empty string. For all other loggers, the name is made up of one or more components, separated by a period. For example, the loggers with the name HTTPServer.RequestHandler and HTTPServer.Listener are descendants of the logger HTTPServer, which itself is a descendant of the root logger. There is not limit as to how deep the logger hierarchy can become. Once a logger has been created and it has inherited the channel and level from its ancestor, it loses the connection to it. So changes to the level or channel of a logger do not affect its descendants. This greatly simplifies the implementation of the framework and is no real restriction, because almost always levels and channels are set up at application startup and never changed afterwards. Nevertheless, there are methods to simultaneously change the level and channel of all loggers in a certain hierarchy.\n There are also convenience macros available that wrap the actual logging statement into a check whether the Logger's log level is sufficient to actually log the message. This allows to increase the application performance if many complex log statements are used. The macros also add the source file path and line number into the log message so that it is available to formatters. Variants of these macros that allow message formatting with Poco::format() are also available. Up to four arguments are supported.";
+		DJob *job = DJob::Instance();
 		
-		_talk.rpc(DCODE_PRINT, ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + ts + "\n");
+		if(param->size() < 2)
+		{
+			_talk.rpc(DCODE_READY);
+			return;
+		}
+		if((*param)[1] == "womp")
+		{
+			string ts = (string) (*param)[0] + ": womp!";
+			_talk.rpc(DCODE_PRINT, ts + "\n");
+		}
+		else if((*param)[1] == "ghost")
+		{
+			if(param->size() > 2 && (*param)[2] == "on")
+			{
+				pool.sendParam(PARAM_GHOST, "on");
+				_talk.rpc(DCODE_PRINT, "Ghost mode enabled.");
+				return;
+			}
+			else if(param->size() > 2 && (*param)[2] == "off")
+			{
+				pool.sendParam(PARAM_GHOST, "off");
+				_talk.rpc(DCODE_PRINT, "Ghost mode disabled.");
+				return;
+			}
+		}
+		
+		// cleanup, just in-case
+		_talk.rpc(DCODE_READY);
+		return;
+		
 	}
 	
 	void clientDetails(int node_t)

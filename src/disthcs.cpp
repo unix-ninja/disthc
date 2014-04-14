@@ -165,6 +165,20 @@ public:
 				job->setAttackMode(value);
 				if(DEBUG) app.logger().information(format("%%Set param: attack[%d]", value));
 			}
+			else if (match(key, PARAM_GHOST))
+			{
+				string value = string(t[1].c_str());
+				if(value == "on")
+				{
+					dengine->setGhost(true);
+					app.logger().information("* Ghost mode enabled.");
+				}
+				else
+				{
+					dengine->setGhost(false);
+					app.logger().information("* Ghost mode disabled.");
+				}
+			}
 			else if (match(key, PARAM_MODE))
 			{
 				int value;

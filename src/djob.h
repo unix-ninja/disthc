@@ -21,6 +21,8 @@ public:
 	void			setHashType(int);
 	string			getMask();
 	bool			setMask(string);
+	int				getMaskMin();
+	bool			setMaskMin(int);
 	string			getRules();
 	void			setRules(string);
 	string			getDictionary();
@@ -57,6 +59,7 @@ protected:
 	string			_hashes; // hashlist to be used for attack
 	string			_rules; // rules file
 	string			_mask; // mask to use
+	int				_maskMin;	// pw-min flag value
 	string			_pot; // pot file
 	string			_db; // disthc master db file
 	unsigned long long _ceiling;

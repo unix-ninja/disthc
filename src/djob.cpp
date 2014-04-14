@@ -9,6 +9,7 @@ DJob::DJob()
 	_running = false;
 	_chunk = 0;
 	_ceiling = 0;
+	_maskMin = 0;
 }
 
 DJob* DJob::Instance()
@@ -213,6 +214,18 @@ bool DJob::setMask(std::string mask)
 		}
 	}
 	_mask = mask;
+	return true;
+}
+
+int DJob::getMaskMin()
+{
+	return _maskMin;
+}
+
+bool DJob::setMaskMin(int min)
+{
+	if(min < 0) min = 0;
+	_maskMin = min;
 	return true;
 }
 

@@ -16,6 +16,7 @@ string cmap[] = {		// map of commands to expand
 			"exit",
 			"hashes",
 			"mask",
+			"mask minimum",
 			"msg",
 			"mode",
 			"shutdown",

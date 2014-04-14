@@ -224,6 +224,15 @@ int Ngn_Hashcat::run ()
 	// 4 = Permutation
 	// 5 = Table-Lookup
 	
+	// if mask minimum set, apply it
+	if(job->getMaskMin())
+	{
+		cmd = format("%s --pw-min %d",
+			cmd,
+			job->getMaskMin()
+		);
+	}
+	
 	// discover attack mode and create command to execute
 	switch(getAttackMode())
 	{

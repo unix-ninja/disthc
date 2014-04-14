@@ -71,7 +71,7 @@ using std::vector;
 
 
 // Application constants
-#define APP_VERSION 36
+#define APP_VERSION 37
 #define APP_PROMPT string("disthc>")
 #define NODE_SLAVE 1
 #define NODE_CONIO 2
@@ -87,6 +87,7 @@ using std::vector;
 #define PARAM_DICT "D"
 #define PARAM_HASHES "H"
 #define PARAM_CHUNK_SIZE "C"
+#define PARAM_GHOST "G"
 
 // Exit codes
 #define EXIT_BAD_DICT 2
@@ -116,5 +117,6 @@ using std::vector;
 // Readability shortcuts
 #define match !strcmp
 
+// Globals
 extern bool DEBUG;
 extern bool GHOST;
