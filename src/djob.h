@@ -23,6 +23,8 @@ public:
 	bool			setMask(string);
 	int				getMaskMin();
 	bool			setMaskMin(int);
+	int				getMaskMax();
+	bool			setMaskMax(int);
 	string			getRules();
 	void			setRules(string);
 	string			getDictionary();
@@ -60,6 +62,7 @@ protected:
 	string			_rules; // rules file
 	string			_mask; // mask to use
 	int				_maskMin;	// pw-min flag value
+	int				_maskMax;	// pw-max flag value
 	string			_pot; // pot file
 	string			_db; // disthc master db file
 	unsigned long long _ceiling;
@@ -107,7 +110,7 @@ public:
 	int				count(int type);
 	ClientNode*		get(unsigned int index, int node_type);
 	bool			slavesAvailable();
-	void			sendMessage(int, std::string);
+	void			sendMessage(int node_type, std::string msg);
 	void			sendParam(string, string);
 	void			sendFile(string, string*);
 	void			sendFile(string);

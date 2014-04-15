@@ -10,6 +10,7 @@ DJob::DJob()
 	_chunk = 0;
 	_ceiling = 0;
 	_maskMin = 0;
+	_maskMax = 0;
 }
 
 DJob* DJob::Instance()
@@ -226,6 +227,18 @@ bool DJob::setMaskMin(int min)
 {
 	if(min < 0) min = 0;
 	_maskMin = min;
+	return true;
+}
+
+int DJob::getMaskMax()
+{
+	return _maskMax;
+}
+
+bool DJob::setMaskMax(int max)
+{
+	if(max < 0) max = 0;
+	_maskMax = max;
 	return true;
 }
 

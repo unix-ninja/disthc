@@ -71,7 +71,7 @@ using std::vector;
 
 
 // Application constants
-#define APP_VERSION 37
+#define APP_VERSION 38
 #define APP_PROMPT string("disthc>")
 #define NODE_SLAVE 1
 #define NODE_CONIO 2

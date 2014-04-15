@@ -299,7 +299,6 @@ public:
 					// retreive client identity
 					_talk.receive();
 					string clientString = _talk.data();
-					app.logger().information(format("Client: %s", clientString));
 					DigestEngine de("SHA256");
 					de.update(clientString);
 					string clientToken = DigestEngine::digestToHex(de.digest());
@@ -710,12 +709,38 @@ public:
 				{
 					if(param.size() > 2)
 					{
-						job->setMaskMin(NumberParser::parse(param[2]));
+						// allow "-" to clear (zero value)
+						int val = 0;
+						if(param[2] != "-")
+						{
+							val =NumberParser::parse(param[2]);
+						}
+						// set value
+						job->setMaskMin(val);
 						_talk.rpc(DCODE_READY);
 					}
 					else
 					{
 						_talk.rpc(DCODE_PRINT, format("Mask minimum: %d\n", job->getMaskMin()));
+					}
+				}
+				else if(param[1] == "maximum")
+				{
+					if(param.size() > 2)
+					{
+						// allow "-" to clear (zero value)
+						int val = 0;
+						if(param[2] != "-")
+						{
+							val =NumberParser::parse(param[2]);
+						}
+						// set value
+						job->setMaskMax(val);
+						_talk.rpc(DCODE_READY);
+					}
+					else
+					{
+						_talk.rpc(DCODE_PRINT, format("Mask maximum: %d\n", job->getMaskMax()));
 					}
 				}
 				else
@@ -800,6 +825,8 @@ public:
 			if(job->isRunning())
 			{
 				_talk.rpc(DCODE_PRINT, "A job is already running.\n");
+			} else if (job->getHashCount() == 0) {
+				_talk.rpc(DCODE_PRINT, "There are no hashes to process. The job will not start.\n");
 			} else {
 				_talk.rpc(DCODE_PRINT, "Job starting...\n");
 				app.logger().information("Job starting...");
@@ -813,14 +840,40 @@ public:
 		else if(rpc == "status")
 		{
 			string msg;
+			string mmin;
+			string mmax;
+			
 			if(job->isRunning()) {
 				msg = "A job is currently running.";
 			} else {
 				msg = "No jobs are running.";
 			}
+			
+			// calculate mask min string
+			if(job->getMaskMin())
+			{
+				mmin = format("%d", job->getMaskMin());
+			}
+			else
+			{
+				mmin = "none";
+			}
+			
+			// calculate mask max string
+			if(job->getMaskMax())
+			{
+				mmax = format("%d", job->getMaskMax());
+			}
+			else
+			{
+				mmax = "none";
+			}
+			
 			// format can only take 7 args at a time. maybe we should use another method.
 			msg = format("%s\n-- Stats --\n  attack: %d\n  mode: %d\n  hashes: %s\n  dictionary: %s\n  mask: %s\n", msg, job->getAttackMode(), job->getHashType(), job->getHashFile(), job->getDictionary(), job->getMask());
-			msg = format ("%s  remaining hashes: %u\n", msg, job->getHashCount());
+			msg = format ("%s  mask min: %s\n  mask max: %s\n  remaining hashes: %u\n", msg, mmin, mmax, job->getHashCount());
+			
+			// send output
 			_talk.rpc(DCODE_PRINT, msg);
 		
 		}
@@ -873,9 +926,11 @@ public:
 			msg = "(help)  prints information on available commands.\n";
 		} else if(cmd == "mask") {
 			msg = (string) "(mask)  view or manipulate the hashcat mask.\n"+
-				(string) "    mask           view the current mask\n"+
-				(string) "    mask <string>  set the mask to <string>\n"+
-				(string) "    mask -         clear the mask and do not use it in jobs";
+				(string) "    mask            view the current mask\n"+
+				(string) "    mask <string>   set the mask to <string>\n"+
+				(string) "    mask min <int>  set the pw-min flag to <int>\n"+
+				(string) "    mask max <int>  set the pw-max flag to <int>\n"+
+				(string) "    mask -          clear the mask and do not use it in jobs";
 		} else if(cmd == "msg") {
 			msg = (string) "(msg)  send a message to all slave screens.\n"+
 				(string) "    msg <string>   sends <string> to each slave to be printed on the screen";
@@ -901,7 +956,7 @@ public:
 		} else if(cmd == "stop") {
 			msg = "(stop)  use this to stop the processing of a job.";
 		} else {
-			msg = "No information is available for '" + cmd + "'\n";
+			msg = "No information is available for '" + cmd + "'";
 		}
 		_talk.rpc(DCODE_PRINT, msg + "\n");
 	}
@@ -999,6 +1054,12 @@ public:
 					talk->rpc(DCODE_SET_CHUNK, format("%lu", chunk));
 					delete talk;
 					pool.unready(*socket);
+				}
+				if(job->getHashCount() == 0)
+				{
+					job->stop();
+					app.logger().information("The job has completed.");
+					pool.sendMessage(NODE_CONIO, "The job has completed.");
 				}
 			}
 		}

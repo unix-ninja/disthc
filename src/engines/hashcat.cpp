@@ -233,6 +233,15 @@ int Ngn_Hashcat::run ()
 		);
 	}
 	
+	// if mask maximum set, apply it
+	if(job->getMaskMax())
+	{
+		cmd = format("%s --pw-min %d",
+			cmd,
+			job->getMaskMax()
+		);
+	}
+	
 	// discover attack mode and create command to execute
 	switch(getAttackMode())
 	{
@@ -442,6 +451,24 @@ int Ngn_oclHashcat::run ()
 	// 3 = Brute-force
 	// 4 = Permutation
 	// 5 = Table-Lookup
+	
+	// if mask minimum set, apply it
+	if(job->getMaskMin())
+	{
+		cmd = format("%s --pw-min %d",
+			cmd,
+			job->getMaskMin()
+		);
+	}
+	
+	// if mask maximum set, apply it
+	if(job->getMaskMax())
+	{
+		cmd = format("%s --pw-min %d",
+			cmd,
+			job->getMaskMax()
+		);
+	}
 	
 	// discover attack mode and create command to execute
 	switch(getAttackMode())
