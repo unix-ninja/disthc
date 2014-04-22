@@ -500,7 +500,8 @@ void ClientPool::blacklist(int node_id)
 		for(int i=0; i<q->size();i++)
 		{
 			if((*q)[i].id == node_id) {
-				//TODO disconnect node
+				// disconnect node
+				(*q)[i].socket.close();
 			}
 		}
 	}
