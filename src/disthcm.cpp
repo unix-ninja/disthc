@@ -233,7 +233,8 @@ public:
 					//TODO maybe client types should be type int?
 					if(_clientType == "slave")
 					{
-						//TODO slave is probably unsafe at this point. maybe remove from pool
+						//slave is probably unsafe at this point. remove from pool
+						pool.unregisterClient(_socket, NODE_SLAVE);
 						return;
 					}
 					process_rpc();
@@ -302,11 +303,48 @@ public:
 					DigestEngine de("SHA256");
 					de.update(clientString);
 					string clientToken = DigestEngine::digestToHex(de.digest());
+					string blacklist = "n";
 					
 					// register the client
+					int node_t = NODE_SLAVE;
+					
+					if(_clientType == "conio")
+					{
+						node_t = NODE_CONIO;
+					}
+					
+					// add client to pool
+					int id = pool.registerClient(_socket, node_t, clientString, clientToken);
+					ClientNode* node = pool.get(id, node_t);
+					
+					// is client in db?
+					*db << "SELECT id, blacklist FROM clients WHERE token=?", use(clientToken), into(id), into(blacklist), now;
+					if(!id)
+					{
+						// add client to db
+						*db << "INSERT INTO clients (token, type, name, os, os_version, arch, cpu, mac, address, last_seen) VALUES (?, 'slave', ?, ?, ?, ?, ?, ?, ?, date('now'))", use(clientToken), use(node->name), use(node->os), use(node->osVersion), use(node->arch), use(node->cpu), use(node->mac), use(node->socket.peerAddress().toString()), now;
+						*db << "SELECT id FROM clients WHERE token=?", use(clientToken), into(id), now;
+					}
+					
+					// check for blacklist
+					if (blacklist == "y")
+					{
+						// remove from pool
+						pool.unregisterClient(_socket, node_t);
+						// don't allow connect
+						_talk.rpc(DCODE_PRINT, "Unknown Error");
+						app.logger().information(format("|Client in blacklist (%s)", id));
+						delete this;
+						return;
+					}
+
+					// assign id to node object
+					node->id = id;
+						
+					// additional setup/sync for slaves
 					if(_clientType == "slave")
 					{
-						pool.registerClient(_socket, NODE_SLAVE, clientString, clientToken);
+						// set all params
 						_talk.receive();
 						if(_talk.data().substr(0,2) == "C:")
 						{
@@ -332,10 +370,10 @@ public:
 						}
 						sendHashes(_socket); // sync hashes with just this client
 					}
-					else
-					{
-						pool.registerClient(_socket, NODE_CONIO, clientString, clientToken);
-					}
+//					else
+//					{
+//						pool.registerClient(_socket, NODE_CONIO, clientString, clientToken);
+//					}
 					
 					_talk.rpc(DCODE_READY);
 				}
@@ -593,6 +631,22 @@ public:
 				int node_t = 0;
 				int pi = 1; // set the param index to check
 				
+				if(param[1] == "blacklist" )
+				{
+					if(param[2].substr(0,1) == "-")
+					{
+						int node_id = Poco::NumberParser::parse(param[2].substr(1));
+						*db << "UPDATE clients SET blacklist='n' WHERE id=?", use(node_id), now;
+						_talk.rpc(DCODE_PRINT, format("Unblacklisted node %d", node_id));
+					} else {
+						int node_id = Poco::NumberParser::parse(param[2]);
+						pool.blacklist(node_id);
+						*db << "UPDATE clients SET blacklist='y' WHERE id=?", use(node_id), now;
+						_talk.rpc(DCODE_PRINT, format("Blacklisted node %d", node_id));
+					}
+					return;
+				}
+				
 				if(param[1] == "details" )
 				{
 					pi = 2; // advance param index
@@ -662,8 +716,7 @@ public:
 							app.logger().information(format("%%Setting hash file to %s", param[1]));
 						}
 						job->setHashFile(param[1]);
-						// TODO we can probably remove the sendParam and just send the relevant list
-						//      or... we can have the client compare local hash files and request missing ones.
+						// TODO probably need to audit some of this code for tansfering files
 						pool.sendParam(PARAM_HASHES, job->getHashFile()); // send to slaves
 						loadHashes();
 						sendHashes();
@@ -907,11 +960,14 @@ public:
 				(string) "    chunk reset   set chunk position to 0";
 		} else if(cmd == "clients") {
 			msg = (string) "(clients)  view information about disthc clients\n\n" +
-				(string) "           You can specify an optional \"node\" parameter to get more info about a\n" +
-				(string) "           node type. For example, 'clients conio' will show info for only the\n" +
+				(string) "           You can specify an optional \"node\" parameter to get more info about\n" +
+				(string) "           a node type. For example, 'clients conio' will show info for only the\n" +
 				(string) "           connected consoles\n\n" +
-				(string) "    clients          view the number of connected clients\n" +
-				(string) "    clients details  view client details for all connected clients\n";
+				(string) "    clients                 view the number of connected clients\n" +
+				(string) "    clients details         view client details for all connected clients\n" +
+				(string) "    clients blacklist <id>  add a client with <id> to the blacklist (you can use\n" +
+				(string) "                            the negative complement of the <id> ro remove a client\n" +
+				(string) "                            from the blacklist)\n";;
 		} else if(cmd == "dictionary" || cmd == "dict") {
 			msg = (string) "(dictionary)  view or set the current dictionary file\n" +
 				(string) "    dictionary             view the current dictionary filename\n" +
@@ -1007,7 +1063,7 @@ public:
 			for(int i=0; i<pool.count(NODE_CONIO); i++)
 			{
 				cn = pool.get(i, NODE_CONIO);
-				out.append(format("C  %s %s %s %s  %s\n", cn->name, cn->os, cn->osVersion, cn->arch, cn->socket.peerAddress().toString()));
+				out.append(format("C  [%u] %s %s %s %s  %s\n", cn->id, cn->name, cn->os, cn->osVersion, cn->arch, cn->socket.peerAddress().toString()));
 			}
 		}
 		if (node_t == 0 || node_t == NODE_SLAVE)
@@ -1015,7 +1071,7 @@ public:
 			for(int i=0; i<pool.count(NODE_SLAVE); i++)
 			{
 				cn = pool.get(i, NODE_SLAVE);
-				out.append(format("S  %s %s %s %s  %s\n", cn->name, cn->os, cn->osVersion, cn->arch, cn->socket.peerAddress().toString()));
+				out.append(format("S  [%u] %s %s %s %s  %s\n", cn->id, cn->name, cn->os, cn->osVersion, cn->arch, cn->socket.peerAddress().toString()));
 			}
 		}
 		_talk.rpc(DCODE_PRINT, out);
@@ -1224,8 +1280,9 @@ protected:
 		db = new Poco::Data::Session(Poco::Data::SessionFactory::instance().create(Poco::Data::SQLite::Connector::KEY, job->getDb()));
 
 		// Make sure tables are present
-		*db << "CREATE TABLE IF NOT EXISTS job_queue (id INT AUTO_INCREMENT PRIMARY KEY, job_name VARCHAR, hash VARCHAR NOT NULL, salt VARCHAR)", now;
-		*db << "CREATE TABLE IF NOT EXISTS rainbow (id INT AUTO_INCREMENT PRIMARY KEY, hash_type VARCHAR, hash VARCHAR NOT NULL, salt VARCHAR, plain VARCHAR NOT NULL)", now;
+		*db << "CREATE TABLE IF NOT EXISTS job_queue (job_name VARCHAR, hash VARCHAR NOT NULL, salt VARCHAR)", now;
+		*db << "CREATE TABLE IF NOT EXISTS rainbow (hash_type VARCHAR, hash VARCHAR NOT NULL, salt VARCHAR, plain VARCHAR NOT NULL)", now;
+		*db << "CREATE TABLE IF NOT EXISTS clients (id INTEGER PRIMARY KEY AUTOINCREMENT, token VARCHAR NOT NULL, type VARCHAR(8) NOT NULL, name VARCHAR(128) NOT NULL, os VARCHAR(16) NOT NULL, os_version VARCHAR(16) NOT NULL, arch VARCHAR(8) NOT NULL, cpu INT NOT NULL DEFAULT 1, mac VARCHAR(32) NOT NULL, address VARCHAR(32) NOT NULL, last_seen DATETIME NOT NULL, blacklist VARCHAR(1) DEFAULT 'n')", now;
 		loadHashes();
 		//sendHashes(); // send on connect
 

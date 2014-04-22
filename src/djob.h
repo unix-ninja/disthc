@@ -79,6 +79,7 @@ class ClientNode
 public:
 	StreamSocket	socket;
 	int				type;	// client node type (NODE_SLAVE|NODE_CONIO)
+	unsigned int	id;		// id from database to reference node
 	string			os;
 	string			osVersion;
 	string			arch;
@@ -104,7 +105,7 @@ private:
 	
 public:
 	bool			registerClient(StreamSocket, int node_type);
-	bool			registerClient(StreamSocket, int node_type, string clientString, string clientToken);
+	int				registerClient(StreamSocket, int node_type, string clientString, string clientToken);
 	bool			unregisterClient(StreamSocket, int node_type);
 	int				count();
 	int				count(int type);
@@ -120,6 +121,7 @@ public:
 	void			zap(string);
 	void			setChunkSize(StreamSocket, unsigned int); // sets the chunk size for a slave node
 	unsigned int	getChunkSize(StreamSocket); // get the chunk size for a slave node
+	void			blacklist(int node_id); // blacklist a node by node id (found in client details)
 };
 
 extern ClientPool pool;

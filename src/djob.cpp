@@ -274,7 +274,7 @@ bool ClientPool::registerClient(StreamSocket socket, int node)
 	return true;
 }
 
-bool ClientPool::registerClient(StreamSocket socket, int node, string clientString, string clientToken)
+int ClientPool::registerClient(StreamSocket socket, int node, string clientString, string clientToken)
 {
 	// create client node object
 	ClientNode cn;
@@ -290,16 +290,19 @@ bool ClientPool::registerClient(StreamSocket socket, int node, string clientStri
 	cn.mac = cs[4];
 	cn.arch = cs[5];
 	cn.token = clientToken;
+	cn.id = 0;
 	
 	// add to queue
 	if(node == NODE_SLAVE)
 	{
 		_slaves.push_back(cn);
 		_chunkMap.push_back(DEFAULT_CHUNK_SIZE);
-	} else
+		return _slaves.size()-1;
+	} else {
 		//_conio.push_back(socket);
 		_conio.push_back(cn);
-	return true;
+		return _conio.size()-1;
+	}
 }
 
 bool ClientPool::unregisterClient(StreamSocket socket, int node)
@@ -484,6 +487,23 @@ unsigned int ClientPool::getChunkSize(StreamSocket socket)
 		}
 	}
 	return 0; // chunk size should NEVER be zero
+}
+
+void ClientPool::blacklist(int node_id)
+{
+
+	deque<ClientNode> *q;
+	for(int loop=1; loop<=2; loop++)
+	{
+		if(loop == 1) q = &_slaves;
+		if(loop == 2) q = &_conio;
+		for(int i=0; i<q->size();i++)
+		{
+			if((*q)[i].id == node_id) {
+				//TODO disconnect node
+			}
+		}
+	}
 }
 
 ClientPool pool;

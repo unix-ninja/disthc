@@ -9,6 +9,7 @@ string cmap[] = {		// map of commands to expand
 			"attack",
 			"chunk",
 			"clients",
+			"clients blacklist",
 			"clients details",
 			"clients details conio",
 			"clients details slave",

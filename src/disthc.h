@@ -4,6 +4,8 @@
 #include <Poco/FileStream.h>
 #include <Poco/Logger.h>
 #include <Poco/MemoryStream.h>
+#include <Poco/Net/SecureServerSocket.h>	// SSL
+#include <Poco/Net/SecureStreamSocket.h>	// SSL
 #include <Poco/Net/SocketReactor.h>
 #include <Poco/Net/SocketAcceptor.h>
 #include <Poco/Net/SocketConnector.h>       // Client Connections
@@ -42,6 +44,8 @@ using Poco::FileInputStream;
 using Poco::FileOutputStream;
 using Poco::format;
 using Poco::MemoryInputStream;
+using Poco::Net::SecureServerSocket;
+using Poco::Net::SecureStreamSocket;
 using Poco::Net::SocketAcceptor;
 using Poco::Net::SocketAddress;
 using Poco::Net::SocketConnector;
@@ -71,7 +75,7 @@ using std::vector;
 
 
 // Application constants
-#define APP_VERSION 38
+#define APP_VERSION 39
 #define APP_PROMPT string("disthc>")
 #define NODE_SLAVE 1
 #define NODE_CONIO 2
