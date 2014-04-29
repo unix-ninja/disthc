@@ -21,6 +21,8 @@ string cmap[] = {		// map of commands to expand
 			"mask minimum",
 			"msg",
 			"mode",
+			"show",
+			"show rt",
 			"shutdown",
 			"start",
 			"status",

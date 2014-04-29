@@ -137,6 +137,14 @@ bool loadHashes()
 	return true;
 }
 
+string lookupHash(string hash, string salt)
+{
+	string plain;
+	std::cout << "PP--PP " << salt << std::endl;
+	*db << "SELECT plain FROM rainbow WHERE hash=? AND salt=?", use(hash), use(salt), into(plain), now;
+	return plain;
+}
+
 
 // ************************************************************************** //
 // Service handle for main app
@@ -370,10 +378,6 @@ public:
 						}
 						sendHashes(_socket); // sync hashes with just this client
 					}
-//					else
-//					{
-//						pool.registerClient(_socket, NODE_CONIO, clientString, clientToken);
-//					}
 					
 					_talk.rpc(DCODE_READY);
 				}
@@ -860,10 +864,17 @@ public:
 		}
 		else if(rpc == "show")
 		{
-			if(param.size()>1)
+			if(param.size()>2 && param[1] == "rt")
 			{
-				_talk.rpc(DCODE_PRINT, "Plain text: \n");
-				app.logger().information("Showing rainbow results...");
+				string salt = "";
+				StringTokenizer p_hash(param[2], ":");
+				
+				if(p_hash.count()>1) salt = p_hash[1];
+				if(DEBUG) app.logger().information("%Showing rainbow results...");
+				app.logger().information("..." + salt);
+				_talk.rpc(DCODE_PRINT, format("Plain text: %s\n", lookupHash(p_hash[0], salt)));
+			} else {
+				_talk.rpc(DCODE_PRINT, "Invalid parameters to 'show'. Type 'help show' for usage.\n");
 			}
 		}
 		else if(rpc == "shutdown")
@@ -1001,8 +1012,7 @@ public:
 				(string) "    rules -       clear rules (do not use rules in jobs)";
 		} else if(cmd == "show") {
 			msg = (string) "(show)  view details on the various options.\n"+
-				(string) "    show rt <string>    show the plain for <string> if found";
-				//(string) "    show pot      view the results in your pot";
+				(string) "    show rt <string>[:<salt>]    show the plain for <string> (and optional <salt>) if found";
 		}else if(cmd == "shutdown" || cmd == "shut") {
 			msg = "(shutdown)  this will shutdown the server and close all client connections made\n to the server.";
 		} else if(cmd == "start") {
@@ -1284,7 +1294,6 @@ protected:
 		*db << "CREATE TABLE IF NOT EXISTS rainbow (hash_type VARCHAR, hash VARCHAR NOT NULL, salt VARCHAR, plain VARCHAR NOT NULL)", now;
 		*db << "CREATE TABLE IF NOT EXISTS clients (id INTEGER PRIMARY KEY AUTOINCREMENT, token VARCHAR NOT NULL, type VARCHAR(8) NOT NULL, name VARCHAR(128) NOT NULL, os VARCHAR(16) NOT NULL, os_version VARCHAR(16) NOT NULL, arch VARCHAR(8) NOT NULL, cpu INT NOT NULL DEFAULT 1, mac VARCHAR(32) NOT NULL, address VARCHAR(32) NOT NULL, last_seen DATETIME NOT NULL, blacklist VARCHAR(1) DEFAULT 'n')", now;
 		loadHashes();
-		//sendHashes(); // send on connect
 
 		// Launch worker thread
 		if(DEBUG)
