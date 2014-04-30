@@ -22,7 +22,6 @@ string cmap[] = {		// map of commands to expand
 			"msg",
 			"mode",
 			"show",
-			"show rt",
 			"shutdown",
 			"start",
 			"status",

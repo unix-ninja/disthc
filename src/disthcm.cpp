@@ -864,10 +864,10 @@ public:
 		}
 		else if(rpc == "show")
 		{
-			if(param.size()>2 && param[1] == "rt")
+			if(param.size()>1)
 			{
 				string salt = "";
-				StringTokenizer p_hash(param[2], ":");
+				StringTokenizer p_hash(param[1], ":");
 				
 				if(p_hash.count()>1) salt = p_hash[1];
 				if(DEBUG) app.logger().information("%Showing rainbow results...");
@@ -1012,7 +1012,7 @@ public:
 				(string) "    rules -       clear rules (do not use rules in jobs)";
 		} else if(cmd == "show") {
 			msg = (string) "(show)  view details on the various options.\n"+
-				(string) "    show rt <string>[:<salt>]    show the plain for <string> (and optional <salt>) if found";
+				(string) "    show <string>[:<salt>]    show the plain for <string> (and optional <salt>) if found";
 		}else if(cmd == "shutdown" || cmd == "shut") {
 			msg = "(shutdown)  this will shutdown the server and close all client connections made\n to the server.";
 		} else if(cmd == "start") {
