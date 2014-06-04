@@ -11,6 +11,10 @@
 #include "djob.h"
 #include "dtalk.h"
 #include "engines/hashcat.h"
+#include "SecureSocketConnector.h"
+#include "InvalidCertHandler.h"
+#include <Poco/Net/KeyConsoleHandler.h>
+#include <Poco/Net/SSLManager.h>
 
 // ************************************************************************** //
 // Local globals
@@ -294,7 +298,7 @@ public:
 
 };
 
-class mySocketConnector : public SocketConnector<DistClientHandler>
+class mySocketConnector : public dNet::SocketConnector<DistClientHandler>
 {
 private:
 	bool _failed;
@@ -516,6 +520,12 @@ protected:
 		// set-up a SocketReactor
 		SocketReactor reactor;
 
+		// Let's setup rules for SSL (I don't want to be prompted about certs)
+		Poco::SharedPtr<Poco::Net::PrivateKeyPassphraseHandler> pConsoleHandler = new Poco::Net::KeyConsoleHandler(false);
+		Poco::SharedPtr<Poco::Net::InvalidCertificateHandler> pInvalidCertHandler = new myCertificateHandler;
+		Poco::Net::Context::Ptr pContext = new Poco::Net::Context(Poco::Net::Context::CLIENT_USE, "", "", "", Poco::Net::Context::VERIFY_RELAXED, 9, false, "ALL:!ADH:!LOW:!EXP:!MD5:@STRENGTH");
+		Poco::Net::SSLManager::instance().initializeClient(pConsoleHandler, pInvalidCertHandler, pContext);
+		
 		// Connect to the server
 		mySocketConnector connector(sa, reactor);
 

@@ -15,27 +15,27 @@ console: bin/disthcc
 bin/disthcm: src/djob.cpp src/dtalk.cpp src/disthcm.cpp
 	@echo "Compiling Application (master server)..."
 	@echo "#########################################"
-	$(CC) -o $@ $(CCFLAGS) $^ -lPocoNet -lPocoUtil -lPocoFoundation -lPocoDataSQLite -lPocoData -lPocoCrypto
+	$(CC) -o $@ $(CCFLAGS) $^ -lPocoNet -lPocoNetSSL -lPocoUtil -lPocoFoundation -lPocoDataSQLite -lPocoData -lPocoCrypto
 	@echo "done."
 	@echo
 
 bin/disthcs: src/engines/hashcat.cpp src/djob.cpp src/dtalk.cpp src/disthcs.cpp
 	@echo "Compiling Application (slave)..."
 	@echo "#################################"
-	$(CC) -o $@ $(CCFLAGS) $^ -lPocoNet -lPocoUtil -lPocoFoundation
+	$(CC) -o $@ $(CCFLAGS) $^ -lPocoNet -lPocoNetSSL -lPocoUtil -lPocoFoundation
 	@echo "done."
 	@echo
 
 bin/disthcc: src/dtalk.cpp src/tinycon.cpp src/disthcc.cpp
 	@echo "Compiling Application (console)..."
 	@echo "###################################"
-	$(CC) -o $@ $(CCFLAGS) $^ -lPocoNet -lPocoUtil -lPocoFoundation
+	$(CC) -o $@ $(CCFLAGS) $^ -lPocoNet -lPocoNetSSL -lPocoUtil -lPocoFoundation
 	@echo "done."
 	@echo
 
 clean:
 	@echo "Cleaning..."
 	@echo "############"
-	rm -rf *.o $(EXECS)
+	rm -rf *.o $(EXECS) bin/*
 	@echo "done."
 	@echo

@@ -48,6 +48,7 @@ public:
 	bool			stop();
 	bool			ready(StreamSocket); // set a slave in the ready queue
 	bool			unready(StreamSocket); // remove a slave from the ready queue
+	bool			closeClients();
 
 protected:
 					DJob();
@@ -122,6 +123,7 @@ public:
 	void			setChunkSize(StreamSocket, unsigned int); // sets the chunk size for a slave node
 	unsigned int	getChunkSize(StreamSocket); // get the chunk size for a slave node
 	void			blacklist(int node_id); // blacklist a node by node id (found in client details)
+	void			closeClients(); // safely close SSL sockets
 };
 
 extern ClientPool pool;

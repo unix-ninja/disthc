@@ -22,9 +22,17 @@ Also, you must have a copy of hashcat and/or hashcat-ocl in order to use this so
 
 Finally, before you can run the software, you will probably need to modify the server.properties and slave.properties files (found in the cfg directory) in order to get certain features to work properly (or at all). One example is, you must include the path to your hashcat install.
 
+## SSL Support
+
+Disthc now uses SSL for secure communications out-of-the-box. Two pem files are needed on the master for this:
+* Your CA certificate file (rootcert.pem by default)
+* Your server's public and private keys stored in a single pem (any.pem by default)
+
+You can, of course, change these via the master.properties file to be any certs of your choosing, but the existing files will work for rapid deployment during testing.
+
 ## Building
 
-You can now use make to build disthc! Run make by itself, or specify one of the three build targets: master, slave, console.
+Simply use make as expected to build disthc. Run make by itself, or specify one of the three build targets: master, slave, console.
 Example building all modules:
 
 ```

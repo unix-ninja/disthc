@@ -881,6 +881,10 @@ public:
 		{
 			_talk.rpc(DCODE_PRINT, "Shutting down server...\n");
 			app.logger().information("Shutting down...");
+			
+			// close any remaining SSL sockets
+			job->closeClients();
+			
 			// hard shutdown; this should probably be improved
 			exit(0);
 		}
@@ -1253,7 +1257,7 @@ protected:
 		Application& app = Application::instance();
 
 		// set-up a server socket
-		ServerSocket svs(port);
+		SecureServerSocket svs(port);
 		// set-up a SocketReactor
 		SocketReactor reactor;
 		// ... and a SocketAcceptor

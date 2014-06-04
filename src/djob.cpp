@@ -252,6 +252,12 @@ void DJob::setPot(std::string pot)
 	_pot = pot;
 }
 
+bool DJob::closeClients()
+{
+	pool.closeClients();
+	return true;
+}
+
 DJob* DJob::_pInstance = NULL; // this MUST be set for Instance() to recognize the reference
 
 
@@ -503,6 +509,21 @@ void ClientPool::blacklist(int node_id)
 				// disconnect node
 				(*q)[i].socket.close();
 			}
+		}
+	}
+}
+
+void ClientPool::closeClients()
+{
+
+	deque<ClientNode> *q;
+	for(int loop=1; loop<=2; loop++)
+	{
+		if(loop == 1) q = &_slaves;
+		if(loop == 2) q = &_conio;
+		for(int i=0; i<q->size();i++)
+		{
+			(*q)[i].socket.close();
 		}
 	}
 }
