@@ -2,7 +2,7 @@
 
 find_package(Poco)
 
-set(COMMON_LIB PocoNet PocoUtil PocoFoundation)
+set(COMMON_LIB PocoNet PocoUtil PocoFoundation PocoNetSSL)
 
 # Sources for each target
 set(MASTER_SRC djob.cpp dtalk.cpp disthcm.cpp)
